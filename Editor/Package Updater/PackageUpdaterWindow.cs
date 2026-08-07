@@ -44,10 +44,32 @@ namespace PauloAragao.Tools
             public string LatestTag;
             public string Status = "";
             public bool Checking;
+            public bool Supported = true; // false for git hosts other than GitHub
 
-            public bool UpdateAvailable =>
-                !string.IsNullOrEmpty(LatestTag) &&
-                CompareVersions(StripV(LatestTag), InstalledVersion) > 0;
+            public bool PinnedToTag => LooksLikeTag(Revision);
+
+            public bool UpdateAvailable
+            {
+                get
+                {
+                    if (!Supported || string.IsNullOrEmpty(LatestTag)) return false;
+
+                    // When the manifest pins a tag, compare tag against tag. package.json is not
+                    // reliable for this: a tag can be published pointing at a commit whose manifest
+                    // was never bumped, which would otherwise hide or fake an available update.
+                    if (PinnedToTag)
+                        return CompareVersions(StripV(LatestTag), StripV(Revision)) > 0;
+
+                    // Tracking a branch, or no revision at all: fall back to the installed version.
+                    return CompareVersions(StripV(LatestTag), InstalledVersion) > 0;
+                }
+            }
+
+            /// <summary>True when the published tag and the package.json inside it disagree.</summary>
+            public bool VersionMismatch =>
+                PinnedToTag &&
+                !string.IsNullOrEmpty(InstalledVersion) &&
+                CompareVersions(StripV(Revision), InstalledVersion) != 0;
         }
 
         // ────────────────────────────────────────────────────────
@@ -94,7 +116,7 @@ namespace PauloAragao.Tools
             foreach (var pkg in listRequest.Result.Where(p => p.source == PackageSource.Git))
             {
                 var url = ExtractUrl(pkg.packageId);
-                if (!TryParseGitHub(url, out var owner, out var repo)) continue;
+                var supported = TryParseGitHub(url, out var owner, out var repo);
 
                 entries.Add(new Entry
                 {
@@ -104,7 +126,9 @@ namespace PauloAragao.Tools
                     Owner = owner,
                     Repo = repo,
                     Revision = pkg.git != null ? pkg.git.revision : null,
-                    InstalledVersion = pkg.version
+                    InstalledVersion = pkg.version,
+                    Supported = supported,
+                    Status = supported ? "" : "Not a GitHub URL. Update this one manually."
                 });
             }
 
@@ -120,7 +144,7 @@ namespace PauloAragao.Tools
 
         private void CheckAll()
         {
-            foreach (var entry in entries)
+            foreach (var entry in entries.Where(e => e.Supported))
                 CheckLatestTag(entry);
         }
 
@@ -141,7 +165,9 @@ namespace PauloAragao.Tools
 
                 if (request.result != UnityWebRequest.Result.Success)
                 {
-                    entry.Status = $"GitHub request failed: {request.error}";
+                    entry.Status = request.responseCode == 404
+                        ? $"Repository {entry.Owner}/{entry.Repo} not found. If it is private, update this one manually."
+                        : $"GitHub request failed: {request.error}";
                     request.Dispose();
                     Repaint();
                     return;
@@ -300,9 +326,16 @@ namespace PauloAragao.Tools
             else if (!string.IsNullOrEmpty(entry.Status))
                 EditorGUILayout.LabelField(entry.Status, EditorStyles.miniLabel);
 
+            if (entry.VersionMismatch)
+            {
+                EditorGUILayout.LabelField(
+                    $"Tag {entry.Revision} ships package.json {entry.InstalledVersion}. Bump the manifest before tagging.",
+                    EditorStyles.miniLabel);
+            }
+
             EditorGUILayout.EndVertical();
 
-            using (new EditorGUI.DisabledScope(busy || entry.Checking))
+            using (new EditorGUI.DisabledScope(busy || entry.Checking || !entry.Supported))
             {
                 if (entry.UpdateAvailable)
                 {
@@ -341,6 +374,12 @@ namespace PauloAragao.Tools
             owner = match.Groups[1].Value;
             repo = match.Groups[2].Value;
             return true;
+        }
+
+        /// <summary>Distinguishes a version tag ("v1.2.0", "1.2.0") from a branch name ("main").</summary>
+        private static bool LooksLikeTag(string revision)
+        {
+            return !string.IsNullOrEmpty(revision) && Regex.IsMatch(revision, @"^v?\d+\.\d+");
         }
 
         private static string StripV(string tag)

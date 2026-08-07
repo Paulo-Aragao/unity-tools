@@ -1,6 +1,6 @@
 {
   "name": "com.paulo-aragao.unity-tools",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "displayName": "Unity Tools",
   "description": "Collection of editor development tools: Scriptable Object Browser, Hierarchy Separator, Transform Reset Button and Package Updater.",
   "unity": "2021.3",
