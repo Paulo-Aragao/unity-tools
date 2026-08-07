@@ -1,0 +1,18 @@
+{
+  "name": "com.paulo-aragao.unity-tools",
+  "version": "1.0.0",
+  "displayName": "Unity Tools",
+  "description": "Collection of editor development tools: Scriptable Object Browser, Hierarchy Separator and Transform Reset Button.",
+  "unity": "2021.3",
+  "author": {
+    "name": "Paulo Aragao",
+    "url": "https://github.com/Paulo-Aragao"
+  },
+  "keywords": [
+    "editor",
+    "tools",
+    "scriptable-object",
+    "hierarchy",
+    "transform"
+  ]
+}
