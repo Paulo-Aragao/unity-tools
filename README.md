@@ -43,7 +43,7 @@ such. Unauthenticated GitHub API calls are limited to 60 per hour, far above nor
 `Window > Package Manager > + > Add package from git URL`:
 
 ```
-https://github.com/Paulo-Aragao/unity-tools.git#v1.1.1
+https://github.com/Paulo-Aragao/unity-tools.git#v1.1.2
 ```
 
 Requires Unity 2021.3+.

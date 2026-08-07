@@ -115,7 +115,9 @@ namespace PauloAragao.Tools
 
             foreach (var pkg in listRequest.Result.Where(p => p.source == PackageSource.Git))
             {
-                var url = ExtractUrl(pkg.packageId);
+                // packageId carries the revision ("...git#v1.0.0"). Store the bare URL, otherwise
+                // appending the new tag produces "...git#v1.0.0#v1.1.0" and the clone fails.
+                var url = StripRevision(ExtractUrl(pkg.packageId));
                 var supported = TryParseGitHub(url, out var owner, out var repo);
 
                 entries.Add(new Entry
@@ -222,7 +224,7 @@ namespace PauloAragao.Tools
             addTarget = updateQueue.Dequeue();
             busy = true;
 
-            var identifier = $"{addTarget.RepoUrl}#{addTarget.LatestTag}";
+            var identifier = $"{StripRevision(addTarget.RepoUrl)}#{addTarget.LatestTag}";
             globalStatus = $"Installing {addTarget.Name} {addTarget.LatestTag}...";
             addTarget.Status = "Installing...";
 
@@ -363,11 +365,20 @@ namespace PauloAragao.Tools
             return at < 0 ? packageId : packageId.Substring(at + 1);
         }
 
+        /// <summary>Drops the "#tag" fragment so a new revision can be appended safely.</summary>
+        private static string StripRevision(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return url;
+
+            var hash = url.IndexOf('#');
+            return hash < 0 ? url : url.Substring(0, hash);
+        }
+
         private static bool TryParseGitHub(string url, out string owner, out string repo)
         {
             owner = repo = null;
 
-            var withoutRevision = url.Split('#')[0];
+            var withoutRevision = StripRevision(url);
             var match = Regex.Match(withoutRevision, @"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?/?$");
             if (!match.Success) return false;
 
