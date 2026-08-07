@@ -13,7 +13,7 @@ Collection of Unity editor development tools by Paulo Aragao.
 `Window > Package Manager > + > Add package from git URL`:
 
 ```
-https://github.com/Paulo-Aragao/unity-tools.git#v1.0.0
+https://github.com/Paulo-Aragao/unity-tools.git#v1.0.1
 ```
 
 Requires Unity 2021.3+.
